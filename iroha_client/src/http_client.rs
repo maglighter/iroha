@@ -3,11 +3,13 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use attohttpc::Response as AttohttpcResponse;
+use attohttpc::{Response as AttohttpcResponse, Session};
 use eyre::{eyre, Error, Result, WrapErr};
 pub use http::{Response, StatusCode};
 use tungstenite::{client::AutoStream, WebSocket};
 pub use tungstenite::{Error as WebSocketError, Message as WebSocketMessage};
+use base64::encode;
+use urlparse::urlparse;
 
 type Bytes = Vec<u8>;
 
@@ -20,7 +22,13 @@ where
     V: ToString,
 {
     let url = url.as_ref();
-    let response = attohttpc::post(url)
+    let mut session = Session::new();
+    let u = urlparse(url);
+    if u.username.is_some() && u.password.is_some() {
+        session.header("Authorization", "Basic ".to_owned() + &encode(u.username.unwrap() + ":" + &u.password.unwrap()));
+    }
+    
+    let response = session.post(url)
         .bytes(body)
         .params(query_params)
         .send()
